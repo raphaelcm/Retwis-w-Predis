@@ -9,6 +9,6 @@ showLastUsers();
 ?>
 <i>Latest 50 messages from users around the world!</i><br>
 <?
-showUserPosts(-1,0,50);
+showUserPosts(-1,0,50,false);
 include("footer.php")
 ?>
