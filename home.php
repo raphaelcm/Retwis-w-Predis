@@ -21,8 +21,11 @@ $r = redisLink();
 <?=$r->scard("uid:".$User['id'].":following")?> following<br>
 </div>
 </div>
+<div id="timelineHeader">
+	<h2>Timeline: You and People You Follow</h2>
+</div>	
 <?
 $start = gt("start") === false ? 0 : intval(gt("start"));
-showUserPostsWithPagination(false,$User['id'],$start,10);
+showUserPostsWithPagination(false,$User['id'],$start,10,true);
 include("footer.php")
 ?>

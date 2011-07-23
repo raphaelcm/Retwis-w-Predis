@@ -75,7 +75,7 @@ function utf8entities($s) {
 function goback($msg) {
     include("header.php");
     echo('<div id ="error">'.utf8entities($msg).'<br>');
-    echo('<a href="javascript:history.back()">Please return back and try again</a></div>');
+    echo('<a href="javascript:history.back()">Please go back and try again</a></div>');
     include("footer.php");
     exit;
 }
@@ -113,10 +113,50 @@ function showPost($id) {
     return true;
 }
 
-function showUserPosts($userid,$start,$count) {
+/*
+addPostsToTimeline
+
+Merge $userid's posts with existing set of posts and sort chronologically (by PostID)
+*/
+function addPostsToTimeline($userid, $timeline, $start, $count) {
+	$r = redisLink();
+	$posts = $r->lrange("uid:$userid:posts",$start,$start+$count);
+	foreach($posts as $p) {
+		$timeline[] = $p;
+	}
+	rsort($timeline, SORT_NUMERIC);
+	return($timeline);
+}
+
+/*
+getRelevantPosts
+
+Returns array of user's and followee's posts, sorted chronologically.
+*/
+function getRelevantPosts($userid,$start,$count) {
+	$r = redisLink();
+	$followees = $r->smembers("uid:"."$userid".":following"); //get userids of all followees
+	$posts = $r->lrange("uid:$userid:posts",$start,$start+$count);
+	foreach($followees as $f) {
+		$posts = addPostsToTimeline($f, $posts, $start, $count);
+	}
+	
+	return $posts;
+}
+
+/*
+showUserPosts
+
+Show only the user's posts if $includeFollowees if false.
+Otherwise, show user's and followees' posts.
+*/
+function showUserPosts($userid,$start,$count,$includeFollowees) {
     $r = redisLink();
     $key = ($userid == -1) ? "global:timeline" : "uid:$userid:posts";
-    $posts = $r->lrange($key,$start,$start+$count);
+	if($includeFollowees)
+		$posts = getRelevantPosts($userid,$start,$count);
+	else
+		$posts = $r->lrange($key,$start,$start+$count);
     $c = 0;
     foreach($posts as $p) {
         if (showPost($p)) $c++;
@@ -125,7 +165,18 @@ function showUserPosts($userid,$start,$count) {
     return count($posts) == $count+1;
 }
 
-function showUserPostsWithPagination($username,$userid,$start,$count) {
+/*
+showUserPostsWithPagination
+
+Shows own and followee's posts, formatted and paginated.
+
+$username - User's names
+$userid - User's id
+$start - Where to start from
+$count - How many to show per page
+$includeFollowees - include user's followees?
+*/
+function showUserPostsWithPagination($username,$userid,$start,$count,$includeFollowees) {
     global $_SERVER;
     $thispage = $_SERVER['PHP_SELF'];
 
@@ -136,7 +187,7 @@ function showUserPostsWithPagination($username,$userid,$start,$count) {
     if ($prev < 0) $prev = 0;
 
     $u = $username ? "&u=".urlencode($username) : "";
-    if (showUserPosts($userid,$start,$count))
+	if (showUserPosts($userid,$start,$count,$includeFollowees))
         $nextlink = "<a href=\"$thispage?start=$next".$u."\">Older posts &raquo;</a>";
     if ($start > 0) {
         $prevlink = "<a href=\"$thispage?start=$prev".$u."\">&laquo; Newer posts</a>".($nextlink ? " | " : "");
@@ -151,8 +202,6 @@ function showLastUsers() {
 											'DESC' => 0,
 											'LIMIT' => array(0 => '0',
 															 1 => '10')));
-	
-	//$users = $r->rawCommand("sort global:users GET uid:*:username DESC LIMIT 0 10");
 	
     echo("<div>");
 	foreach($users as $u) {
