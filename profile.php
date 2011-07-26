@@ -4,7 +4,8 @@ include("header.php");
 
 $r = redisLink();
 if (!gt("u") || !($userid = $r->get("username:".gt("u").":id"))) {
-    header("Location: index.php");
+	echo("<h2 class=\"username\">No user by that name.</h2>");
+    //header("Location: index.php");
     exit(1);
 }
 echo("<h2 class=\"username\">".utf8entities(gt("u"))."</h2>");

@@ -210,4 +210,11 @@ function showLastUsers() {
     echo("</div><br>");
 }
 
+function getAllUsers() {
+	$r = redisLink();
+	
+	$allusers = $r->sort("global:users", array('GET' => 'uid:*:username'));
+	return $allusers;
+}
+
 ?>
